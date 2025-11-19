@@ -208,3 +208,7 @@ __marimo__/
 
 
 logs/
+
+.env
+dbt/profiles.yml
+dbt/.user.yml
