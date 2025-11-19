@@ -156,7 +156,7 @@ def load(rows, target_table: str):
 # DAG 
 # ---------------------------
 with DAG(
-    dag_id='TwoStockV2',
+    dag_id='StockPriceETL',
     start_date=datetime(2024, 9, 21),
     catchup=False,
     tags=['ETL'],
