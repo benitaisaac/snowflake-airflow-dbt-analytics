@@ -107,6 +107,9 @@ services:
 
   airflow:
     <<: *airflow-common
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: >
       bash -c "airflow scheduler & airflow webserver"
     ports:

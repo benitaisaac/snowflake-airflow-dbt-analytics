@@ -170,17 +170,22 @@ with DAG(
     tidy_rows = transform(raw_data)
     inserted = load(tidy_rows, target_table=target_table)
 
-    trigger_forecast = TriggerDagRunOperator(
-        task_id="trigger_forecast",
-        trigger_dag_id="TrainPredict",   
-        wait_for_completion=False,          
+    # ---- Trigger ELT/dbt DAG ----
+    trigger_elt = TriggerDagRunOperator(
+        task_id="trigger_elt",
+        trigger_dag_id="dbt_elt_pipeline",  # your ELT/dbt DAG's dag_id
+        wait_for_completion=False,
         conf={
-            "as_of_date": "{{ ds }}",                       
-            "source_table": target_table,                   
-            "symbols": "{{ var.value.stock_symbols }}",     # whatever you put in Variables
+            "as_of_date": "{{ ds }}",
+            "source_table": target_table,
+            "symbols": "{{ var.value.stock_symbols }}",
             "lookback_days": "{{ var.value.lookback_days }}",
+            "data_interval_start": "{{ data_interval_start.isoformat() }}",
+            "data_interval_end": "{{ data_interval_end.isoformat() }}",
+            "source_dag": "{{ dag.dag_id }}",
+            "source_run_id": "{{ run_id }}",
         },
     )
 
-    raw_data >> tidy_rows >> inserted >> trigger_forecast
+    raw_data >> tidy_rows >> inserted >> trigger_elt
     
