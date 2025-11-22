@@ -15,6 +15,10 @@ analysis-paths: ["analyses"]
 test-paths: ["tests"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
+snapshots:
+  stock_analytics:
+    +schema: SNAPSHOTS
+    +materialized: snapshot
 snapshot-paths: ["snapshots"]
 
 clean-targets: # directories to be removed by `dbt clean`

@@ -1,7 +1,7 @@
 # snowflake-airflow-dbt-analytics
 End-to-end data analytics pipeline using Airflow, Snowflake, dbt, and Superset for stock price analytics.
 
-# 🧠 Lab 2 – End-to-End Stock Analytics Pipeline
+# 🧠 Lab 2S – End-to-End Stock Analytics Pipeline
 **Course:** DATA 226  
 **Authors:** Benita Isaac and Shruthi Thirukumaran
 **Tools:** Airflow • Snowflake • dbt • Superset (or Preset/Tableau)
