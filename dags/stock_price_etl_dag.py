@@ -104,11 +104,14 @@ def transform(raw):
 @task
 def load(rows, target_table: str):
     """
-    Creates the table if needed, truncates it (full refresh), then inserts all rows.
-    Uses a transaction with COMMIT/ROLLBACK.
+    Idempotent load:
+      - Create target if needed
+      - Create a TEMP staging table
+      - Insert batch into staging
+      - Abort if staging is empty
+      - MERGE staging -> target (upsert)
     """
-    # Table DDL — safe to run every time thanks to IF NOT EXISTS
-    ddl = f"""
+    ddl_target = f"""
     CREATE TABLE IF NOT EXISTS {target_table} (
       SYMBOL       VARCHAR(16)   NOT NULL,
       "DATE"       DATE          NOT NULL,
@@ -124,33 +127,75 @@ def load(rows, target_table: str):
     );
     """
 
-    insert_sql = f"""
-    INSERT INTO {target_table}
+    # temp staging table name
+    stage = target_table + "_STAGE"
+
+    ddl_stage = f"""
+    CREATE TEMPORARY TABLE {stage} LIKE {target_table};
+    """
+
+    insert_stage_sql = f"""
+    INSERT INTO {stage}
       (SYMBOL, "DATE", OPEN, HIGH, LOW, CLOSE, ADJ_CLOSE, VOLUME)
     VALUES
       (%s, %s, %s, %s, %s, %s, %s, %s)
     """
 
+    merge_sql = f"""
+    MERGE INTO {target_table} t
+    USING {stage} s
+      ON  t.SYMBOL = s.SYMBOL
+      AND t."DATE" = s."DATE"
+    WHEN MATCHED THEN UPDATE SET
+      t.OPEN      = s.OPEN,
+      t.HIGH      = s.HIGH,
+      t.LOW       = s.LOW,
+      t.CLOSE     = s.CLOSE,
+      t.VOLUME    = s.VOLUME,
+      t.ADJ_CLOSE = s.ADJ_CLOSE,
+      t.SOURCE    = 'yfinance',
+      t.LOAD_TS   = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT
+      (SYMBOL, "DATE", OPEN, HIGH, LOW, CLOSE, VOLUME, ADJ_CLOSE, SOURCE, LOAD_TS)
+    VALUES
+      (s.SYMBOL, s."DATE", s.OPEN, s.HIGH, s.LOW, s.CLOSE, s.VOLUME, s.ADJ_CLOSE, 'yfinance', CURRENT_TIMESTAMP());
+    """
+
     cur = return_snowflake_conn()
     try:
-        cur.execute(ddl)          
-        cur.execute("BEGIN")      
-        cur.execute(f"TRUNCATE TABLE {target_table}")  
+        # create target and temp stage
+        cur.execute(ddl_target)
+        cur.execute("BEGIN")
+        cur.execute(ddl_stage)
 
-        if rows:
-            cur.executemany(insert_sql, rows)       
+        # guard: if no rows extracted, abort WITHOUT touching target
+        if not rows:
+            cur.execute("ROLLBACK")
+            return 0
 
-        cur.execute("COMMIT")    
-        return len(rows)
+        # insert into staging
+        cur.executemany(insert_stage_sql, rows)
+
+        # optional additional guard: ensure staging has rows
+        cur.execute(f"SELECT COUNT(*) FROM {stage}")
+        stage_count = cur.fetchone()[0]
+        if stage_count == 0:
+            cur.execute("ROLLBACK")
+            raise ValueError("Staging table is empty; aborting load to maintain idempotency.")
+
+        # upsert
+        cur.execute(merge_sql)
+
+        cur.execute("COMMIT")
+        return stage_count
     except Exception:
-        cur.execute("ROLLBACK")   
+        cur.execute("ROLLBACK")
         raise
     finally:
         try:
             cur.close()
         except Exception:
             pass
-
 
 # ---------------------------
 # DAG 
