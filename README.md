@@ -1,16 +1,17 @@
 # End-to-End Stock Analytics Pipeline
-**Course:** DATA 226  
+**Course:** DATA 226 - Data Warehouse and Pipeline  
 **Authors:** Benita Isaac and Shruthi Thirukumaran
 **Tools:** Airflow • Snowflake • dbt • Superset (or Preset/Tableau)
 
 ---
 
 ## 🎯 Objective
-Build an **end-to-end data analytics system** that extracts stock-price data, loads it into Snowflake, trains a forecasting model, transforms data with dbt, and visualizes key metrics in a BI tool.  
-This lab extends **Lab 1 (ETL + Forecast)** by adding **ELT (db t models)** and **Visualization** components.
+Build an **end-to-end data analytics system** that extracts stock-price data, loads it into Snowflake, transforms data with dbt, and visualizes key metrics in a BI tool.  
 
 ---
 ## System Architecture 
+
+![System Architecture](images/system_architecture.jpeg)
 
 This project uses a modern ELT pipeline that moves data from extraction to analytics using Airflow, Snowflake, and dbt:
 
